@@ -1,0 +1,83 @@
+---
+title: "Practical Machine Learning Project"
+author: "Yuanyuan Yang"
+date: "6/29/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project Background
+
+In this project, data is from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The goal of this project is to predict the manner in which the participants did the exercise.
+
+## Preprocessing
+
+```{r}
+library(caret)
+ptrain <- read.csv("pml-training.csv", na.strings = c("NA", ""))
+ptest <- read.csv("pml-testing.csv", na.strings = c("NA", ""))
+```
+
+Take a look of the data, there are a lot of NAs in some columns. We'll reduce them.
+
+```{r}
+nv <- colMeans(is.na(ptrain))
+table(nv)
+ptrain <- ptrain[!nv]
+```
+
+Also, there are some columns are related to user info and time info, we'll remove them too.
+
+```{r}
+ptrain <- ptrain[, -(1:7)]
+```
+
+## Cross Validation
+
+Next I'll use the function in Caret package to split data into training set and cross validation set.
+
+```{r}
+set.seed(123)
+inTrain <- createDataPartition(y=ptrain$classe, p=0.7, list=F)
+train <- ptrain[inTrain, ]
+cross <- ptrain[-inTrain, ]
+```
+
+## Build Model
+
+I'll try Random Forest to see the performance first.
+
+```{r}
+library(randomForest)
+fitControl <- trainControl(method="cv", number=3, verboseIter=F)
+fit <- train(classe ~ ., data=train, method="rf", trControl=fitControl)
+```
+
+See final trained model:
+
+```{r}
+fit$finalModel
+```
+
+The final model includes 500 trees and 27 variables at each split. The confusion matrix shows the model performance is good.
+
+## Model Evaluation
+
+Let's apply the final model to the cross validation set:
+
+```{r}
+pred <- predict(fit, newdata=cross)
+confusionMatrix(cross$classe, pred)
+```
+
+Based on this output, the out-of-sample error is 0.2%.
+
+## Predict the Test set
+
+```{r}
+testpred <- predict(fit, newdata = ptest)
+ptest$predclasse <- testpred
+```
